@@ -24,6 +24,7 @@ def retrieve_prices(trading_robot, inputsymbol, start_date, end_date, bar_string
 
     return historical_prices_df, trading_robot
 
+# Not using this routine, assuming we will download a fresh copy of data every run
 def read_price_file(file_name, logger) :
 
     try:

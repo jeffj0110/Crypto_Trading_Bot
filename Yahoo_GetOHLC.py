@@ -11,7 +11,7 @@ import pandas as pd
 from functions import setup_func
 
 from indicator_calcs import Indicators
-from save_sp500_tickers import save_sp500_tickers
+#from save_sp500_tickers import save_sp500_tickers
 from calc_returns import Calc_Returns
 from retrieve_prices import retrieve_prices, read_price_file
 from summary_file import summary_file
@@ -27,11 +27,11 @@ def Run_Model(inputsymbol, start_date, end_date, logger, historical_prices_df, f
         sys.exit(-1)
 
     # Create an indicator Object.
-    indicator_client = Indicators(input_price_data_frame=historical_prices_df, lgfile=logger)
+    indicator_client = Indicators(symbol, input_price_data_frame=historical_prices_df, lgfile=logger)
 
-    stock_info_df = indicator_client.refresh()
+    stock_info_df = indicator_client.refresh(symbol)
 
-    stock_info_df = Calc_Returns(stock_info_df, start_date, end_date, logger)
+    stock_info_df = Calc_Returns(symbol, stock_info_df, start_date, end_date, logger)
 
     full_path = file_name
 
@@ -157,16 +157,16 @@ def main(argv):
 
     for sym in Symbol_List :
         file_name = sym + '_' + file_name_date_string
-        if os.path.exists(file_name) :
-            logger.info("Already Retrieved Data For Ticker {tick}".format(tick=sym))
-            historical_prices_df = read_price_file(file_name, logger)
-            Run_Model(sym, start_date, end_date, logger, historical_prices_df, file_name)
-        else :
-            # Sets up the robot class, robot's portfolio
-            trading_robot = setup_func(logger)
-            historical_prices_df, trading_robot = retrieve_prices(trading_robot, sym, start_date, end_date, bar_string, logger)
-            Run_Model(sym, start_date, end_date, logger, historical_prices_df, file_name)
-            time.sleep(5)
+        #if os.path.exists(file_name) :
+        #    logger.info("Already Retrieved Data For Ticker {tick}".format(tick=sym))
+        #    historical_prices_df = read_price_file(file_name, logger)
+        #    Run_Model(sym, start_date, end_date, logger, historical_prices_df, file_name)
+        #else :
+        # Sets up the robot class, robot's portfolio
+        trading_robot = setup_func(logger)
+        historical_prices_df, trading_robot = retrieve_prices(trading_robot, sym, start_date, end_date, bar_string, logger)
+        Run_Model(sym, start_date, end_date, logger, historical_prices_df, file_name)
+        time.sleep(5)
 
     if len(Symbol_List) > 1 :
         summary_file(Symbol_List, file_name_date_string, logger)

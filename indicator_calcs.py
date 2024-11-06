@@ -31,7 +31,7 @@ class Indicators():
     to easily add technical indicators to a StockFrame.
     """
 
-    def __init__(self, input_price_data_frame: pd.DataFrame, lgfile=None) -> None:
+    def __init__(self, symbol, input_price_data_frame: pd.DataFrame, lgfile=None) -> None:
         """Initalizes the Indicator Client.
 
         Arguments:
@@ -51,7 +51,7 @@ class Indicators():
             >>> indicator_client = Indicators(price_data_frame=price_data_frame)
             >>> indicator_client.price_data_frame
         """
-
+        self.symbol = symbol
         self._indicator_signals = {}
         self.stock_data = input_price_data_frame
         self.indicator_signal_list = []
@@ -255,7 +255,7 @@ class Indicators():
         # print(self.price_data_frame)
         # Add the ema
         self._frame[column_name + '_' + str(period)] = self._frame['close'].transform(
-            lambda x: x.ewm(span=period, min_periods=period, adjust=False, ignore_na = False, axis=0).mean()
+            lambda x: x.ewm(span=period, min_periods=period, adjust=False, ignore_na = False).mean()
         )
 
 
@@ -271,10 +271,10 @@ class Indicators():
         while count < len(self._frame):
             if count == 0:
                 per_of_change.append(0)
-                prev = next = self._frame["close"][count]
+                prev = next = self._frame["close"].iloc[count]
             else:
                 prev = next
-                next = self._frame["close"][count]
+                next = self._frame["close"].iloc[count]
                 per_of_change.append(round(((next - prev) / prev) * 100, 3))
             count += 1
 
@@ -292,9 +292,9 @@ class Indicators():
         while count < len(self._frame):
             if count == 0:
                 resulting_comparison.append(False)
-            elif math.isnan(self._frame["ema_9"][count]) or math.isnan(self._frame["ema_50"][count]) or math.isnan(self._frame["ema_200"][count]) :
+            elif math.isnan(self._frame["ema_9"].iloc[count]) or math.isnan(self._frame["ema_50"].iloc[count]) or math.isnan(self._frame["ema_200"].iloc[count]) :
                 resulting_comparison.append(False)
-            elif (self._frame["ema_9"][count] > self._frame["ema_50"][count]) and (self._frame["ema_50"][count] > self._frame["ema_200"][count]) :
+            elif (self._frame["ema_9"].iloc[count] > self._frame["ema_50"].iloc[count]) and (self._frame["ema_50"].iloc[count] > self._frame["ema_200"].iloc[count]) :
                 resulting_comparison.append(True)
             else:
                 resulting_comparison.append(False)
@@ -306,7 +306,7 @@ class Indicators():
 
 
     def filter_non_numeric(self, input_str=str) -> str :
-        numeric_str = re.sub("[^\d\.]", "", input_str)
+        numeric_str = re.sub("[^\\d\\.]", "", input_str)
         return numeric_str
 
     def buy_condition(self):
@@ -321,33 +321,33 @@ class Indicators():
         # Generates signals column called buy_condition
         last_buy = 0 # Used for stop loss tracking
         for i in range(1,len(self._frame)):
-            if (self._frame['close'][i-1] < (last_buy * .80)) and (Open_Position[i-1] > 0) :      # Stop loss set to 20%
+            if (self._frame['close', self.symbol].iloc[i-1] < (last_buy * .80)) and (Open_Position[i-1] > 0) :      # Stop loss set to 20%
                 signal_list.append('Sell')
                 last_buy = 0
                 Open_Position.append(0)
-                Purchase_Sell.append(self._frame['close'][i-1])
+                Purchase_Sell.append(self._frame['close', self.symbol].iloc[i-1])
             else :
-                if (i != (len(self._frame)-1)) and (self._frame['EMA9_EMA50_EMA200'][i]) and (Open_Position[i-1] <= 0) and (self._frame['14_Day_Stoch_RSI'][i] < .3) and (self._frame['RSI_K_Line'][i] >  self._frame['RSI_D_Line'][i]) :
+                if (i != (len(self._frame)-1)) and (self._frame['EMA9_EMA50_EMA200'].iloc[i]) and (Open_Position[i-1] <= 0) and (self._frame['14_Day_Stoch_RSI'].iloc[i] < .3) and (self._frame['RSI_K_Line'].iloc[i] >  self._frame['RSI_D_Line'].iloc[i]) :
                     signal_list.append('Buy')
                     Open_Position.append(1)
-                    last_buy = float(self._frame['close'][i-1])
-                    Purchase_Sell.append(self._frame['close'][i-1] * -1)
-                elif ((self._frame['RSI_K_Line'][i] < self._frame['RSI_D_Line'][i]) and (Open_Position[i-1] > 0) and (self._frame['14_Day_Stoch_RSI'][i] > .9)) :
+                    last_buy = float(self._frame['close', self.symbol].iloc[i-1])
+                    Purchase_Sell.append(self._frame['close', self.symbol].iloc[i-1] * -1)
+                elif ((self._frame['RSI_K_Line'].iloc[i] < self._frame['RSI_D_Line'].iloc[i]) and (Open_Position[i-1] > 0) and (self._frame['14_Day_Stoch_RSI'].iloc[i] > .9)) :
                     signal_list.append('Sell')
                     last_buy = 0
                     Open_Position.append(0)
-                    Purchase_Sell.append(self._frame['close'][i-1])
+                    Purchase_Sell.append(self._frame['close', self.symbol].iloc[i-1])
                 elif (i == (len(self._frame)-1)) and (Open_Position[i-1] > 0) :
                     signal_list.append('Sell')
                     Open_Position.append(0)
-                    Purchase_Sell.append(self._frame['close'][i-1])
+                    Purchase_Sell.append(self._frame['close', self.symbol].iloc[i-1])
                 else:
                     signal_list.append('')
                     Open_Position.append(Open_Position[i-1])
                     Purchase_Sell.append(0)
-        self._frame['Purchase_Sell'] = pd.Series(Purchase_Sell).values
-        self._frame["buy_sell_condition"] = pd.Series(signal_list).values
-        self._frame['Open_Position'] = pd.Series(Open_Position).values
+        self._frame['Purchase_Sell', self.symbol] = pd.Series(Purchase_Sell).values
+        self._frame["buy_sell_condition", self.symbol] = pd.Series(signal_list).values
+        self._frame['Open_Position', self.symbol] = pd.Series(Open_Position).values
         self.stock_data = self._frame
 
         Running_PnL = []
@@ -355,9 +355,9 @@ class Indicators():
         for i in range(1, len(self._frame)):
             running_total=0
             for x in range(i,0,-1) :
-                running_total += self._frame['Purchase_Sell'][x]
+                running_total += self._frame['Purchase_Sell', self.symbol].iloc[x]
             Running_PnL.append(running_total)
-        self._frame['Running_PnL'] = pd.Series(Running_PnL).values
+        self._frame['Running_PnL', self.symbol] = pd.Series(Running_PnL).values
         return self._frame
 
 
@@ -388,14 +388,14 @@ class Indicators():
 
 
 
-        self._frame[column_name] = self._frame['close'].transform(
+        self._frame[column_name] = self._frame['close', self.symbol].transform(
             lambda x: x.pct_change(periods=period)
         )
 
         return self._frame
 
-    def gain_loss(self, column_name: str = None) -> pd.DataFrame:
-        close_prices = self._frame['close']
+    def gain_loss(self, symbol, column_name: str = None, ) -> pd.DataFrame:
+        close_prices = self._frame['close', symbol]
         gain_column = []
         loss_column = []
         row_counter = 0
@@ -433,7 +433,7 @@ class Indicators():
             elif math.isnan(loss_item) :
                 rsi.append(float('nan'))
             else:
-                rsi.append(100.0-(100/(1+RS_Col[row_counter])))
+                rsi.append(100.0-(100/(1+RS_Col.iloc[row_counter])))
             row_counter += 1
 
 
@@ -504,8 +504,8 @@ class Indicators():
         stoch_rsi=[]
         row_counter = 0
         for RSI_item in RSI_Col :
-            numerator = RSI_item - RSI_Low_Col[row_counter]
-            denominator = RSI_High_Col[row_counter]-RSI_Low_Col[row_counter]
+            numerator = RSI_item - RSI_Low_Col.iloc[row_counter]
+            denominator = RSI_High_Col.iloc[row_counter]-RSI_Low_Col.iloc[row_counter]
             stoch_rsi.append(numerator / denominator)
             row_counter += 1
         self._frame[column_name] = stoch_rsi
@@ -1037,7 +1037,7 @@ class Indicators():
         return self._frame
 
 
-    def refresh(self) -> pd.DataFrame:
+    def refresh(self, symbol) -> pd.DataFrame:
         """Updates the Indicator columns.  It is assumed that the pandas table is already referenced within the object."""
 
         # First update the groups since, we have new rows.
@@ -1048,7 +1048,7 @@ class Indicators():
         self.ema(period=9)
         self.ema(period=50)
         self.ema(period=200)
-        self.gain_loss()
+        self.gain_loss(symbol)
         self.sma(period=14, result_column_name='AvgGain', input_column_name='Gain')
         self.sma(period=14, result_column_name='AvgLoss', input_column_name='Loss')
         self.rel_strength()
